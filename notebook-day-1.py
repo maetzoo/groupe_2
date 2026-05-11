@@ -499,15 +499,24 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     **Approche.** Avec $\theta \equiv 0$ et $\phi \equiv 0$, on a $\ddot{y} = f/M - g$.
-    On choisit donc une trajectoire $y(t)$ polynomiale qui satisfait les conditions
-    aux bords. Une cubique suffit pour interpoler $y(0), \dot{y}(0), y(T), \dot{y}(T)$
-    mais elle donne $f(0) < 0$ (non physique car $f \geq 0$).
+    On cherche une trajectoire cubique $y(t) = a_0 + a_1 t + a_2 t^2 + a_3 t^3$
+    interpolant les quatre conditions aux bords $y(0), \dot{y}(0), y(T), \dot{y}(T)$.
 
-    On ajoute donc les contraintes $\ddot{y}(0) = -g$ (i.e. $f(0)=0$) et
-    $\ddot{y}(T) = 0$ (i.e. $f(T)=Mg$ : hover en fin de course), ce qui mène à un
-    polynôme de degré 5 — et $f$ reste positif sur tout l'intervalle.
+    Avec les valeurs numériques ($y_0=10$, $\dot{y}_0=-2$, $y(T)=\ell=1$, $T=5$),
+    la résolution donne $a_2 = -7/25$ et $a_3 = 8/125$, soit :
 
-    On déduit alors la commande :
+    $$
+    \ddot{y}(t) = 2a_2 + 6a_3\,t = -\frac{14}{25} + \frac{48}{125}\,t
+    $$
+
+    La force est alors **affine croissante** :
+
+    $$
+    f(t) = M\bigl(\ddot{y}(t) + g\bigr) = \frac{11}{25} + \frac{48}{125}\,t \geq 0
+    \quad \forall\,t \in [0, T].
+    $$
+
+    On déduit la commande :
     $$
     f(t) = M\bigl(\ddot{y}(t) + g\bigr), \qquad \phi(t) = 0.
     $$
@@ -519,27 +528,15 @@ def _(mo):
 def _(M, g, l, np, plt, redstart_solve):
     def controlled_landing_example():
         T = 5.0
-        # contraintes : y(0)=10, y'(0)=-2, y''(0)=-g  et  y(T)=l, y'(T)=0, y''(T)=0
-        # (l Python = demi-longueur = ℓ/2 énoncé)
-        a0, a1, a2 = 10.0, -2.0, -g / 2.0  # car y(t) = sum a_k t^k => y''(0) = 2*a2
-        rhs = np.array(
-            [
-                l - a0 - a1 * T - a2 * T**2,
-                0.0 - a1 - 2 * a2 * T,
-                0.0 - 2 * a2,
-            ]
-        )
-        A = np.array(
-            [
-                [T**3, T**4, T**5],
-                [3 * T**2, 4 * T**3, 5 * T**4],
-                [6 * T, 12 * T**2, 20 * T**3],
-            ]
-        )
-        a3, a4, a5 = np.linalg.solve(A, rhs)
+        # Cubique interpolant y(0)=10, y'(0)=-2, y(T)=l, y'(T)=0.
+        # La force résultante f(t) = M*(ÿ+g) est affine croissante => f >= 0 sur [0,T].
+        a0, a1 = 10.0, -2.0
+        A = np.array([[T**2, T**3], [2 * T, 3 * T**2]])
+        rhs = np.array([l - a0 - a1 * T, -a1])
+        a2, a3 = np.linalg.solve(A, rhs)
 
         def y_ddot(t):
-            return 2 * a2 + 6 * a3 * t + 12 * a4 * t**2 + 20 * a5 * t**3
+            return 2 * a2 + 6 * a3 * t
 
         def f_phi(t, s):
             f = M * (y_ddot(t) + g)
@@ -773,7 +770,7 @@ def _(mo):
 
 
 @app.cell
-def _(M,g, l, np, svg, transform):
+def _(M, g, l, np, svg, transform):
     BODY_WIDTH = 0.2
     FLAME_WIDTH = 0.15
 
@@ -807,7 +804,7 @@ def _(M,g, l, np, svg, transform):
         )
 
 
-    return (booster,)
+    return BODY_WIDTH, FLAME_WIDTH, booster
 
 
 @app.cell
@@ -1028,25 +1025,13 @@ def _(M, Y0_FALL, animate_scenario, const_law, g, mo, np):
 def _(M, animate_scenario, g, l, mo, np):
     def controlled_landing_law():
         T = 5.0
-        a0, a1, a2 = 10.0, -2.0, -g / 2.0
-        rhs = np.array(
-            [
-                l - a0 - a1 * T - a2 * T**2,
-                0.0 - a1 - 2 * a2 * T,
-                0.0 - 2 * a2,
-            ]
-        )
-        A = np.array(
-            [
-                [T**3, T**4, T**5],
-                [3 * T**2, 4 * T**3, 5 * T**4],
-                [6 * T, 12 * T**2, 20 * T**3],
-            ]
-        )
-        a3, a4, a5 = np.linalg.solve(A, rhs)
+        a0, a1 = 10.0, -2.0
+        A = np.array([[T**2, T**3], [2 * T, 3 * T**2]])
+        rhs = np.array([l - a0 - a1 * T, -a1])
+        a2, a3 = np.linalg.solve(A, rhs)
 
         def y_ddot(t):
-            return 2 * a2 + 6 * a3 * t + 12 * a4 * t**2 + 20 * a5 * t**3
+            return 2 * a2 + 6 * a3 * t
 
         def f_phi_law(t, s):
             return np.array([M * (y_ddot(t) + g), 0.0])
