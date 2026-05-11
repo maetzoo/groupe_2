@@ -71,7 +71,7 @@ def _():
     import numpy as np
     import numpy.linalg as la
 
-    return
+    return (np,)
 
 
 @app.cell(hide_code=True)
@@ -128,6 +128,14 @@ def _(mo):
     return
 
 
+@app.cell
+def _():
+    g = 1.0 
+    M = 1.0 
+    l = 1.0 
+    return M, g, l
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -136,6 +144,18 @@ def _(mo):
     Compute the cartesian coordinates $f_x$ and $f_y$ of the force applied to the booster by the reactor, functions of $f$, $\theta$ and $\phi$.
     """)
     return
+
+
+@app.cell
+def _(np):
+    def reactor_force_components(f: float, theta: float, phi: float):
+   
+        fx = -f * np.sin(theta + phi)
+        fy = f * np.cos(theta + phi)
+        return fx, fy
+
+
+    return (reactor_force_components,)
 
 
 @app.cell(hide_code=True)
@@ -148,6 +168,21 @@ def _(mo):
     return
 
 
+@app.cell
+def _(M, g, reactor_force_components):
+    # dynamique du centre de masse (deuxième loi de newton)
+    #   x¨ = fx/M
+    #   y¨ = fy/M - g
+    def com_acceleration(f: float, theta: float, phi: float):
+        fx, fy = reactor_force_components(f, theta, phi)
+        ax = fx / M
+        ay = fy / M - g
+        return ax, ay
+
+
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -155,6 +190,14 @@ def _(mo):
 
     Compute the [moment of inertia](https://en.wikipedia.org/wiki/Moment_of_inertia) $J$ of the booster and define the corresponding Python variable `J`.
     """)
+    return
+
+
+@app.cell
+def _(M, l):
+
+    J = (1.0 / 12.0) * M * (2.0 * l) ** 2  # = (1/3) M l^2
+    J
     return
 
 
