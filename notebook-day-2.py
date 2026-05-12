@@ -1703,7 +1703,7 @@ def _(A_lat, B_lat, expm, np, plt):
         return fig
 
     simulate_pole_placement_controller()
-    return
+    return (sig,)
 
 
 @app.cell(hide_code=True)
@@ -1721,10 +1721,204 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ###
+
+    **1. Principe de la Commande Optimale (LQR)**
+    Plutôt que de deviner où placer les pôles, la commande optimale cherche à trouver la commande $u(t)$ (ici $\Delta \phi$) qui minimise une fonction de coût quadratique globale $J$ sur un horizon infini :
+    $$J = \int_{0}^{+\infty} \left( \Delta s_{lat}(t)^T Q \Delta s_{lat}(t) + \Delta \phi(t)^T R \Delta \phi(t) \right) dt$$
+
+    * $Q$ est une matrice (souvent diagonale) qui pénalise les écarts de l'état (position, inclinaison). Des valeurs élevées pour $Q$ forcent une convergence rapide vers zéro.
+    * $R$ est une matrice (ici un scalaire car on a une seule entrée $\Delta \phi$) qui pénalise l'effort de commande. Une valeur élevée pour $R$ garantit que l'angle de la tuyère restera petit.
+
+    **2. Résolution via l'Équation de Riccati**
+    D'après le cours, la matrice de gain optimale est donnée par $K_{oc} = R^{-1}B_{lat}^T\Pi$, où $\Pi$ est la solution symétrique définie positive de l'Équation Algébrique de Riccati Continue (ARE) : $\Pi B_{lat} R^{-1} B_{lat}^T \Pi - \Pi A_{lat} - A_{lat}^T \Pi - Q = 0$.
+
+    **3. Choix des paramètres de conception ($Q$ et $R$)**
+    Puisque nous voulons ramener $x$ et $\theta$ à zéro en environ 20 secondes tout en gardant $\phi$ modéré :
+    * Nous pénalisons fortement l'erreur de position $x$ et l'angle $\theta$ en choisissant $Q = \text{diag}(1, 1, 10, 1)$ (pour corriger agressivement l'inclinaison).
+    * Nous fixons $R = [100]$ pour pénaliser fortement la commande et éviter que la tuyère ne dépasse les limites physiques (pour respecter $|\Delta \phi| < \pi/2$).
+    *(Ces valeurs peuvent être ajustées itérativement pour affiner le temps de réponse).*
+    """)
+    return
+
+
+@app.cell
+def _(A_lat, B_lat, np):
+    from scipy.linalg import solve_continuous_are
+
+    def compute_optimal_controller():
+        # Définition des matrices de pénalité Q (4x4) et R (1x1)
+        # On pénalise l'état [x, vx, theta, omega]
+        Q = np.diag([1.0, 1.0, 10.0, 1.0])
+        R = np.array([[100.0]])
+    
+        # Résolution de l'équation algébrique de Riccati (ARE)
+        Pi = solve_continuous_are(A_lat, B_lat, Q, R)
+    
+        # Calcul de la matrice de gain optimale K_oc
+        K_oc = np.linalg.inv(R) @ B_lat.T @ Pi
+    
+        # Vérification de la stabilité de la boucle fermée
+        A_cl_oc = A_lat - B_lat @ K_oc
+        eig_oc = np.linalg.eigvals(A_cl_oc)
+    
+        print("Matrice de gain optimale K_oc :", np.round(K_oc, 3))
+        print("Valeurs propres en boucle fermée :", np.round(eig_oc, 3))
+    
+        return K_oc
+
+    K_oc = compute_optimal_controller()
+    return (K_oc,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Validation
 
     Test the two control strategies (pole placement and optimal control) on the "true" (nonlinear) model with an animation. Check that both controllers achieve their goal; otherwise, go back to the drawing board and tweak the design parameters until they do!
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ###
+
+    Nous allons maintenant tester et comparer nos deux stratégies de contrôle (Placement de pôles $K_{pp}$ et Commande optimale $K_{oc}$) sur le **modèle non-linéaire complet**.
+
+    Pour cela, nous réutilisons la structure `tilted_landing_law` définie dans le notebook, qui gère la trajectoire verticale planifiée (polynôme de degré 5) et y superpose le retour d'état latéral linéaire pour calculer l'angle $\phi$.
+
+    Nous définissons la condition initiale exigeante de la section "Off-center" :
+    * Décalage initial : $x_0 = 2.5$ m
+    * Inclinaison initiale : $\theta_0 = 30^\circ$ ($\pi/6$)
+    * Temps de simulation : $T = 5.0$ s (et on laisse déborder un peu pour voir la stabilisation à l'atterrissage si on le souhaite, bien que la trajectoire soit prévue sur 5s).
+
+    Si les paramètres sont bien choisis, les deux animations montreront la fusée compenser son décalage latéral en s'inclinant, pour finir parfaitement droite et centrée sur la cible verte.
+    """)
+    return
+
+
+@app.cell
+def _(A_lat, B_lat, M, booster_anim, g, l, np, redstart_solve, sig, world):
+
+    SCENARIO_VIEW = [-5, 5, -3, 12]
+    SCENARIO_T = 5.0
+
+    def animate_scenario(y0, f_phi_law, T=SCENARIO_T, view_box=SCENARIO_VIEW):
+    
+        sol = redstart_solve([0.0, T], y0, f_phi_law)
+
+        def x_t(t):
+            return float(sol(t)[0])
+
+        def y_t(t):
+            return float(sol(t)[2])
+
+        def theta_t(t):
+            return float(sol(t)[4])
+
+        def f_t(t):
+        
+            return float(f_phi_law(t, sol(t))[0])
+
+        def phi_t(t):
+       
+            return float(f_phi_law(t, sol(t))[1])
+
+        return world(
+            view_box, 
+            booster_anim(x_t, y_t, theta_t, f_t, phi_t, T=T)
+        )
+    def optimal_landing_law(theta_0, K_matrix):
+
+        T = 5.0
+    
+        a0_y, a1_y, a2_y = 10.0, -2.0, -g / 2.0
+        A_y = np.array([
+            [T**3, T**4, T**5],
+            [3 * T**2, 4 * T**3, 5 * T**4],
+            [6 * T, 12 * T**2, 20 * T**3],
+        ])
+        rhs_y = np.array([
+            l - a0_y - a1_y * T - a2_y * T**2,
+            0.0 - a1_y - 2 * a2_y * T,
+            0.0 - 2 * a2_y,
+        ])
+        a3_y, a4_y, a5_y = np.linalg.solve(A_y, rhs_y)
+
+        def y_ddot(t):
+            return 2 * a2_y + 6 * a3_y * t + 12 * a4_y * t**2 + 20 * a5_y * t**3
+
+        ALPHA_MAX = np.radians(85.0)
+
+    
+        def f_phi_law(t, s):
+            if s is None:
+                return np.array([M * (y_ddot(t) + g), 0.0])
+        
+            # Extraction de l'état latéral
+            x_val, vx_val, theta_val, om_val = s[0], s[1], s[4], s[5]
+        
+            # Application du gain
+            phi = float(-K_matrix[0, 0] * x_val - K_matrix[0, 1] * vx_val - K_matrix[0, 2] * theta_val - K_matrix[0, 3] * om_val)
+        
+        
+            phi = float(np.clip(phi, -ALPHA_MAX - theta_val, ALPHA_MAX - theta_val))
+            denom = np.cos(theta_val + phi)
+        
+            if abs(denom) < 1e-3:
+                return np.array([0.0, 0.0])
+            
+            f = M * (y_ddot(t) + g) / denom
+            if f < 0.0:
+                f = 0.0
+            
+            return np.array([f, phi])
+
+        return f_phi_law
+
+
+    poles = [-1.2, -1.25, -1.3, -1.35]
+    K_pp = sig.place_poles(A_lat, B_lat, poles).gain_matrix
+
+    THETA_0_OFFSET = np.pi / 6
+    X_0 = 2.5
+    y0_validation = [X_0, 0.0, 10.0, -2.0, THETA_0_OFFSET, 0.0]
+
+
+
+    return (
+        K_pp,
+        THETA_0_OFFSET,
+        animate_scenario,
+        optimal_landing_law,
+        y0_validation,
+    )
+
+
+@app.cell
+def _(
+    K_oc,
+    K_pp,
+    THETA_0_OFFSET,
+    animate_scenario,
+    mo,
+    optimal_landing_law,
+    y0_validation,
+):
+    mo.md("### Validation : Placement de Pôles vs Commande Optimale")
+    mo.hstack([
+        mo.vstack([
+            mo.md("**Pole Placement ($K_{pp}$)**").center(),
+            mo.Html(animate_scenario(y0_validation, optimal_landing_law(THETA_0_OFFSET, K_pp)))
+        ]),
+        mo.vstack([
+            mo.md("**Optimal Control ($K_{oc}$)**").center(),
+            mo.Html(animate_scenario(y0_validation, optimal_landing_law(THETA_0_OFFSET, K_oc)))
+        ])
+    ], justify="space-around")
     return
 
 
