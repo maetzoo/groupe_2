@@ -1300,6 +1300,7 @@ def _(A, B, np):
     print(f"Dimension du système (n) : {n}")
     print(f"Rang de la matrice de commandabilité C : {rang_C}")
     print(f"Le système est-il commandable ? {rang_C == n}")
+    print(C_matrix)
     return
 
 
