@@ -1087,10 +1087,54 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ###
+
+    Pour trouver les points d'équilibre, on cherche les états où le système ne bouge plus : les dérivées temporelles sont nulles ($\dot{x}=\dot{y}=\dot{\theta}=0$ et $\ddot{x}=\ddot{y}=\ddot{\theta}=0$).
+
+    D'après nos équations de la dynamique :
+    1. $J\ddot{\theta} = -f(\ell/2)\sin(\phi) = 0$. Puisque $f > 0$, cela implique $\sin(\phi) = 0$. Comme $|\phi| < \pi/2$, on a **$\phi = 0$**.
+    2. $M\ddot{x} = -f\sin(\theta + \phi) = 0$. Sachant que $\phi = 0$ et $f > 0$, on a $\sin(\theta) = 0$. Puisque $|\theta| < \pi/2$, on a **$\theta = 0$**.
+    3. $M\ddot{y} = f\cos(\theta + \phi) - Mg = 0$. En remplaçant $\theta = 0$ et $\phi = 0$, on obtient $f\cos(0) = Mg$, d'où **$f = Mg$**.
+
+    **Conclusion :** Les équilibres possibles correspondent au **vol stationnaire parfait (hover)**. La fusée est immobile ($v_x=v_y=\omega=0$), parfaitement verticale ($\theta = 0$), avec la tuyère alignée ($\phi = 0$) et une poussée qui compense exactement la gravité ($f = Mg$).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Linearized Model
 
     Introduce the error variables $\Delta x$, $\Delta y$, $\Delta \theta$, and $\Delta f$ and $\Delta \phi$ of the state and input values with respect to the generic equilibrium configuration.
     What are the linear ordinary differential equations that govern (approximately) these variables in a neighbourhood of the equilibrium?
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ###
+
+    On introduit les variables d'erreur autour de l'équilibre de vol stationnaire ($f_e = Mg$, $\theta_e = 0$, $\phi_e = 0$) :
+    * État : $x = x_e + \Delta x$, $y = y_e + \Delta y$, $\theta = 0 + \Delta \theta$
+    * Entrées : $f = Mg + \Delta f$, $\phi = 0 + \Delta \phi$
+
+    Pour de petits angles, on utilise les approximations $\sin(\alpha) \approx \alpha$ et $\cos(\alpha) \approx 1$. Les équations linéarisées deviennent :
+
+    **Axe $x$ :** $\ddot{\Delta x} = -\frac{Mg + \Delta f}{M}\sin(\Delta \theta + \Delta \phi) \approx -\frac{Mg + \Delta f}{M}(\Delta \theta + \Delta \phi)$
+    En négligeant le terme du second ordre $\Delta f(\Delta \theta + \Delta \phi)$, on obtient :
+    $$\ddot{\Delta x} = -g(\Delta \theta + \Delta \phi)$$
+
+    **Axe $y$ :**
+    $\ddot{\Delta y} = \frac{Mg + \Delta f}{M}\cos(\Delta \theta + \Delta \phi) - g \approx \frac{Mg + \Delta f}{M}(1) - g$
+    $$\ddot{\Delta y} = \frac{\Delta f}{M}$$
+
+    **Angle $\theta$ :**
+    $\ddot{\Delta \theta} = -\frac{(Mg + \Delta f)\ell}{2J}\sin(\Delta \phi) \approx -\frac{(Mg + \Delta f)\ell}{2J}\Delta \phi$
+    En négligeant le terme du second ordre $\Delta f \Delta \phi$, on obtient :
+    $$\ddot{\Delta \theta} = -\frac{Mg\ell}{2J}\Delta \phi$$
     """)
     return
 
