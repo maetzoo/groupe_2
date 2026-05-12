@@ -1153,6 +1153,65 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ###
+
+    Le vecteur d'état est $\Delta s = [\Delta x, \Delta v_x, \Delta y, \Delta v_y, \Delta \theta, \Delta \omega]^T$ et le vecteur d'entrée est $\Delta u = [\Delta f, \Delta \phi]^T$.
+
+    L'équation d'état sous la forme $\dot{\Delta s} = A \Delta s + B \Delta u$ s'écrit avec les matrices suivantes :
+
+    $$
+    A =
+    \begin{bmatrix}
+    0 & 1 & 0 & 0 & 0 & 0 \\
+    0 & 0 & 0 & 0 & -g & 0 \\
+    0 & 0 & 0 & 1 & 0 & 0 \\
+    0 & 0 & 0 & 0 & 0 & 0 \\
+    0 & 0 & 0 & 0 & 0 & 1 \\
+    0 & 0 & 0 & 0 & 0 & 0
+    \end{bmatrix}
+    , \quad
+    B =
+    \begin{bmatrix}
+    0 & 0 \\
+    0 & -g \\
+    0 & 0 \\
+    1/M & 0 \\
+    0 & 0 \\
+    0 & -\frac{Mg\ell}{2J}
+    \end{bmatrix}
+    $$
+    """)
+    return
+
+
+@app.cell
+def _(J, M, g, l, np):
+    # Cellule pour définir les matrices A et B du modèle linéarisé
+    A = np.array([
+        [0.0, 1.0, 0.0, 0.0,  0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0,   -g, 0.0],
+        [0.0, 0.0, 0.0, 1.0,  0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0,  0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0,  0.0, 1.0],
+        [0.0, 0.0, 0.0, 0.0,  0.0, 0.0]
+    ])
+
+    B = np.array([
+        [0.0,   0.0],
+        [0.0,   -g],
+        [0.0,   0.0],
+        [1.0/M, 0.0],
+        [0.0,   0.0],
+        [0.0,   -(M * g * l) / (2 * J)]
+    ])
+
+    A, B
+    return A, B
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Stability
 
     Is the generic equilibrium asymptotically stable?
@@ -1163,10 +1222,84 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ###
+
+    Pour déterminer si l'équilibre générique est asymptotiquement stable, nous devons analyser les valeurs propres (eigenvalues) de la matrice de dynamique $A$.
+
+    D'après le cours, un système linéaire est asymptotiquement stable si et seulement si toutes les valeurs propres de sa matrice ont une partie réelle strictement négative (dans le demi-plan gauche ouvert).
+
+    Notre matrice $A$ est une matrice dont le polynôme caractéristique donne uniquement des racines nulles (c'est une matrice nilpotente). Ses 6 valeurs propres sont donc toutes égales à $0$.
+
+    **Conclusion :** Puisque les parties réelles des valeurs propres ne sont pas strictement négatives, l'équilibre générique **n'est pas asymptotiquement stable**.
+    """)
+    return
+
+
+@app.cell
+def _(A, np):
+    # Cellule pour vérifier numériquement la stabilité
+    valeurs_propres = np.linalg.eigvals(A)
+
+    print("Valeurs propres de la matrice A :")
+    print(np.round(valeurs_propres, 3))
+
+    est_stable = np.all(np.real(valeurs_propres) < 0)
+    print(f"Le système est-il asymptotiquement stable ? {est_stable}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Controllability
 
     Is the linearized model controllable?
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ###
+
+    Pour savoir si le modèle linéarisé est commandable (controllable), nous utilisons le critère de Kalman.
+    Un système invariant dans le temps de dimension $n$ est totalement commandable si la matrice de commandabilité $\mathcal{C}$ est de rang plein (c'est-à-dire de rang $n$).
+
+    La matrice de commandabilité est construite en concaténant les matrices suivantes :
+    $$\mathcal{C} = \begin{bmatrix} B & AB & A^2B & A^3B & A^4B & A^5B \end{bmatrix}$$
+
+    Ici, la dimension de notre vecteur d'état est $n = 6$. Si le rang de la matrice $\mathcal{C}$ (qui est de taille $6 \times 12$) est égal à 6, alors le système est commandable.
+
+    Physiquement, cela a du sens :
+    - L'entrée $\Delta f$ contrôle directement l'altitude $y$.
+    - L'entrée $\Delta \phi$ contrôle l'angle de la fusée $\theta$, et l'inclinaison de cet angle $\theta$ permet à son tour de contrôler le déplacement latéral $x$.
+    Toutes les variables d'état peuvent donc être pilotées !
+    """)
+    return
+
+
+@app.cell
+def _(A, B, np):
+    # Implémentation stricte de la méthode du cours (Kalman Controllability Matrix)
+    def KCM(A, B):
+        n = np.shape(A)[0]
+        mp = np.linalg.matrix_power
+        cs = np.column_stack
+        return cs([mp(A, k) @ B for k in range(n)])
+
+
+    n = A.shape[0]
+
+
+    C_matrix = KCM(A, B)
+
+
+    rang_C = np.linalg.matrix_rank(C_matrix)
+
+    print(f"Dimension du système (n) : {n}")
+    print(f"Rang de la matrice de commandabilité C : {rang_C}")
+    print(f"Le système est-il commandable ? {rang_C == n}")
     return
 
 
