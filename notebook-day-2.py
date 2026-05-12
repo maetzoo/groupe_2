@@ -1237,7 +1237,7 @@ def _(mo):
 
 @app.cell
 def _(A, np):
-    # Cellule pour vérifier numériquement la stabilité
+
     valeurs_propres = np.linalg.eigvals(A)
 
     print("Valeurs propres de la matrice A :")
@@ -1281,7 +1281,7 @@ def _(mo):
 
 @app.cell
 def _(A, B, np):
-    # Implémentation stricte de la méthode du cours (Kalman Controllability Matrix)
+
     def KCM(A, B):
         n = np.shape(A)[0]
         mp = np.linalg.matrix_power
@@ -1363,7 +1363,7 @@ def _(mo):
 
 @app.cell
 def _(J, M, g, l, np):
-    # Définition des matrices réduites
+
     A_lat = np.array([
         [0.0, 1.0, 0.0, 0.0],
         [0.0, 0.0,  -g, 0.0],
@@ -1379,7 +1379,7 @@ def _(J, M, g, l, np):
         [-beta]
     ])
 
-    # Vérification de la commandabilité (Critère de Kalman)
+    # vérification de la commandabilité (Critère de Kalman)
     n_lat = A_lat.shape[0]
     C_lat_cols = [B_lat]
     terme_actuel = B_lat
@@ -1427,14 +1427,14 @@ def _(mo):
 
 @app.cell
 def _(A_lat, np, plt):
-    # Simulation du modèle linéaire sans commande (u = 0)
+
     from scipy.linalg import expm
 
     def simulate_linear_free_fall():
         t = np.linspace(0.0, 5.0, 500)
         y0_lat = np.array([0.0, 0.0, np.pi/4, 0.0])
     
-        # Utilisation de l'exponentielle de matrice comme vu dans le cours (3-2-Stabilization)
+   
         yt = np.array([expm(A_lat * t_) @ y0_lat for t_ in t])
     
         x_t = yt[:, 0]
@@ -1535,31 +1535,30 @@ def _(A_lat, B_lat, np, plt):
         from scipy.linalg import expm
 
         def simulate_manual_controller():
-            # Définition de la matrice de gain manuelle
+        
             k3, k4 = -0.04, -0.33
             K_man = np.array([[0.0, 0.0, k3, k4]])
         
-            # Matrice en boucle fermée
+       
             A_cl_man = A_lat - B_lat @ K_man
         
-            # Vérification des valeurs propres
+       
             eig_man = np.linalg.eigvals(A_cl_man)
             print("Valeurs propres avec K manuel :", np.round(eig_man, 3))
         
-            # Simulation
+       
             t = np.linspace(0.0, 20.0, 1000)
-            y0_lat = np.array([0.0, 0.0, np.pi/4, 0.0]) # Condition initiale
+            y0_lat = np.array([0.0, 0.0, np.pi/4, 0.0]) 
         
-            # Calcul de la trajectoire avec l'exponentielle de matrice
+        
             yt = np.array([expm(A_cl_man * t_) @ y0_lat for t_ in t])
         
             theta_t = yt[:, 2]
             x_t = yt[:, 0]
         
-            # Calcul de la commande au cours du temps
             phi_t = np.array([-K_man @ state for state in yt]).flatten()
         
-            # Tracé
+       
             fig, axes = plt.subplots(3, 1, figsize=(8, 8), sharex=True)
         
             axes[0].plot(t, theta_t, color="tab:red", label=r"$\Delta \theta(t)$ (rad)")
@@ -1652,16 +1651,14 @@ def _(A_lat, B_lat, expm, np, plt):
     import scipy.signal as sig
 
     def simulate_pole_placement_controller():
-        # Définition des pôles (distincts car rang(B_lat) = 1)
+    
         poles = [-0.20, -0.22, -0.24, -0.26]
     
-        # Calcul de la matrice de gain par placement de pôles
+    
         K_pp = sig.place_poles(A_lat, B_lat, poles).gain_matrix
     
-        # Matrice en boucle fermée
         A_cl_pp = A_lat - B_lat @ K_pp
     
-        # Vérification de la stabilité
         eig_pp = np.linalg.eigvals(A_cl_pp)
         print("Matrice de gain K_pp :", np.round(K_pp, 3))
         print("Valeurs propres avec K_pp :", np.round(eig_pp, 3))
@@ -1747,8 +1744,7 @@ def _(A_lat, B_lat, np):
     from scipy.linalg import solve_continuous_are
 
     def compute_optimal_controller():
-        # Définition des matrices de pénalité Q (4x4) et R (1x1)
-        # On pénalise l'état [x, vx, theta, omega]
+    
         Q = np.diag([1.0, 1.0, 10.0, 1.0])
         R = np.array([[100.0]])
     
