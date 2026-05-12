@@ -1392,7 +1392,7 @@ def _(J, M, g, l, np):
 
     print(f"Rang de la matrice de commandabilité réduite : {rang_C_lat} (n={n_lat})")
     print(f"Le système latéral est-il commandable ? {rang_C_lat == n_lat}")
-    return (A_lat,)
+    return A_lat, B_lat
 
 
 @app.cell(hide_code=True)
@@ -1458,7 +1458,7 @@ def _(A_lat, np, plt):
         return fig
 
     simulate_linear_free_fall()
-    return
+    return (expm,)
 
 
 @app.cell(hide_code=True)
@@ -1505,6 +1505,94 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ###
+
+    **1. Réflexion et choix des gains $k_3$ et $k_4$**
+    Nous cherchons une matrice $K = [0, 0, k_3, k_4]$. La loi de commande est $\Delta \phi = -k_3 \Delta \theta - k_4 \Delta \omega$.
+    Puisque les deux premiers gains sont nuls, la dynamique de l'angle $\theta$ est complètement découplée de la position $x$. D'après nos équations linéarisées :
+    $$\ddot{\Delta \theta} = -\frac{Mg\ell}{2J} \Delta \phi = \frac{Mg\ell}{2J} (k_3 \Delta \theta + k_4 \Delta \omega)$$
+
+    En posant $\alpha = \frac{Mg\ell}{2J}$ (qui vaut $1.5$ avec nos constantes $M=1, g=1, l=1, J=1/3$), l'équation caractéristique du sous-système angulaire est :
+    $$s^2 - \alpha k_4 s - \alpha k_3 = 0$$
+
+    Pour que l'angle $\Delta \theta$ converge vers $0$ en environ 20 secondes, nous avons besoin d'une constante de temps $\tau \approx 4$ à $5$ secondes, ce qui correspond à des pôles autour de $-0.2$ ou $-0.25$.
+    Si l'on vise par exemple un polynôme $(s+0.2)(s+0.3) = s^2 + 0.5s + 0.06$, on identifie :
+    * $-\alpha k_4 = 0.5 \implies k_4 = -0.5 / 1.5 \approx -0.33$
+    * $-\alpha k_3 = 0.06 \implies k_3 = -0.06 / 1.5 = -0.04$
+
+    Avec $K = [0, 0, -0.04, -0.33]$, l'effort de commande initial sera $\Delta \phi(0) = -(-0.04)(\pi/4) \approx 0.03$ rad, ce qui respecte largement la contrainte $|\Delta \phi| < \pi/2$.
+
+    **2. Stabilité asymptotique du modèle en boucle fermée**
+    Le modèle complet **n'est pas asymptotiquement stable**.
+    Bien que nous ayons stabilisé le sous-système angulaire ($\Delta \theta \to 0$ et $\Delta \omega \to 0$), la matrice en boucle fermée $A_{cl} = A - B_{lat}K$ possède toujours deux valeurs propres égales à zéro correspondant aux états non contrôlés $\Delta x$ et $\Delta v_x$. D'après le cours, un système n'est asymptotiquement stable que si *toutes* ses valeurs propres ont une partie réelle strictement négative. La simulation montrera que la position latérale $x(t)$ dérive sans jamais revenir à 0.
+    """)
+    return
+
+
+@app.cell
+def _(A_lat, B_lat, np, plt):
+    def _():
+        from scipy.linalg import expm
+
+        def simulate_manual_controller():
+            # Définition de la matrice de gain manuelle
+            k3, k4 = -0.04, -0.33
+            K_man = np.array([[0.0, 0.0, k3, k4]])
+        
+            # Matrice en boucle fermée
+            A_cl_man = A_lat - B_lat @ K_man
+        
+            # Vérification des valeurs propres
+            eig_man = np.linalg.eigvals(A_cl_man)
+            print("Valeurs propres avec K manuel :", np.round(eig_man, 3))
+        
+            # Simulation
+            t = np.linspace(0.0, 20.0, 1000)
+            y0_lat = np.array([0.0, 0.0, np.pi/4, 0.0]) # Condition initiale
+        
+            # Calcul de la trajectoire avec l'exponentielle de matrice
+            yt = np.array([expm(A_cl_man * t_) @ y0_lat for t_ in t])
+        
+            theta_t = yt[:, 2]
+            x_t = yt[:, 0]
+        
+            # Calcul de la commande au cours du temps
+            phi_t = np.array([-K_man @ state for state in yt]).flatten()
+        
+            # Tracé
+            fig, axes = plt.subplots(3, 1, figsize=(8, 8), sharex=True)
+        
+            axes[0].plot(t, theta_t, color="tab:red", label=r"$\Delta \theta(t)$ (rad)")
+            axes[0].axhline(0, color="grey", ls="--")
+            axes[0].set_ylabel("Angle")
+            axes[0].legend()
+            axes[0].grid(True)
+        
+            axes[1].plot(t, phi_t, color="tab:green", label=r"$\Delta \phi(t)$ (rad)")
+            axes[1].axhline(0, color="grey", ls="--")
+            axes[1].set_ylabel("Commande")
+            axes[1].legend()
+            axes[1].grid(True)
+        
+            axes[2].plot(t, x_t, color="tab:blue", label=r"$\Delta x(t)$ (m) - DÉRIVE")
+            axes[2].set_xlabel("Temps $t$ (s)")
+            axes[2].set_ylabel("Position")
+            axes[2].legend()
+            axes[2].grid(True)
+        
+            fig.suptitle("Manually Tuned Controller (Dérive de la position)")
+            fig.tight_layout()
+            return fig
+        return simulate_manual_controller()
+
+
+    _()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Controller Tuned with Pole Assignment
 
     Using pole assignement, find a matrix
@@ -1538,6 +1626,83 @@ def _(mo):
 
     Explain how you find the proper design parameters!
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ###
+
+    **Méthode de conception et choix des pôles**
+    Pour que le système complet soit **asymptotiquement stable**, nous devons placer l'ensemble des 4 pôles du système dans le demi-plan complexe gauche. De plus, nous voulons un temps de réponse d'environ 20 secondes, ce qui nécessite des pôles (valeurs propres dominantes) autour de $-0.2$ à $-0.3$.
+
+    *Contrainte de la fonction `place_poles` :* Le cours précise que la fonction `scipy.signal.place_poles` refuse d'assigner des valeurs propres dont la multiplicité est supérieure au rang de la matrice $B$. Puisque notre matrice $B_{lat}$ est de rang 1 (une seule colonne), nous **devons impérativement choisir 4 pôles distincts**.
+
+    Nous choisissons les pôles : `[-0.2, -0.22, -0.24, -0.26]`.
+    Ces pôles sont suffisamment proches de zéro pour éviter que le système ne réagisse trop violemment au début (ce qui violerait la condition de saturation $|\Delta \phi| < \pi/2$), mais suffisamment éloignés pour garantir que $\Delta x$ et $\Delta \theta$ retournent à $0$ en moins de 20 secondes.
+
+    Contrairement au cas manuel, la matrice $K_{pp}$ calculée par l'algorithme n'aura pas de zéros : elle prendra en compte la position $\Delta x$ et la vitesse $\Delta v_x$, forçant ainsi la fusée à s'incliner légèrement dans le sens opposé pour freiner sa dérive latérale et revenir parfaitement à sa position d'origine.
+    """)
+    return
+
+
+@app.cell
+def _(A_lat, B_lat, expm, np, plt):
+    import scipy.signal as sig
+
+    def simulate_pole_placement_controller():
+        # Définition des pôles (distincts car rang(B_lat) = 1)
+        poles = [-0.20, -0.22, -0.24, -0.26]
+    
+        # Calcul de la matrice de gain par placement de pôles
+        K_pp = sig.place_poles(A_lat, B_lat, poles).gain_matrix
+    
+        # Matrice en boucle fermée
+        A_cl_pp = A_lat - B_lat @ K_pp
+    
+        # Vérification de la stabilité
+        eig_pp = np.linalg.eigvals(A_cl_pp)
+        print("Matrice de gain K_pp :", np.round(K_pp, 3))
+        print("Valeurs propres avec K_pp :", np.round(eig_pp, 3))
+    
+        # Simulation
+        t = np.linspace(0.0, 25.0, 1000)
+        y0_lat = np.array([0.0, 0.0, np.pi/4, 0.0])
+    
+        yt = np.array([expm(A_cl_pp * t_) @ y0_lat for t_ in t])
+    
+        x_t = yt[:, 0]
+        theta_t = yt[:, 2]
+        phi_t = np.array([-K_pp @ state for state in yt]).flatten()
+    
+        # Tracé
+        fig, axes = plt.subplots(3, 1, figsize=(8, 8), sharex=True)
+    
+        axes[0].plot(t, theta_t, color="tab:red", label=r"$\Delta \theta(t)$ (rad)")
+        axes[0].axhline(0, color="grey", ls="--")
+        axes[0].set_ylabel("Angle")
+        axes[0].legend()
+        axes[0].grid(True)
+    
+        axes[1].plot(t, phi_t, color="tab:green", label=r"$\Delta \phi(t)$ (rad)")
+        axes[1].axhline(0, color="grey", ls="--")
+        axes[1].set_ylabel("Commande")
+        axes[1].legend()
+        axes[1].grid(True)
+    
+        axes[2].plot(t, x_t, color="tab:blue", label=r"$\Delta x(t)$ (m)")
+        axes[2].axhline(0, color="grey", ls="--")
+        axes[2].set_xlabel("Temps $t$ (s)")
+        axes[2].set_ylabel("Position")
+        axes[2].legend()
+        axes[2].grid(True)
+    
+        fig.suptitle("Pole Assignment Controller (Stabilité Asymptotique Complète)")
+        fig.tight_layout()
+        return fig
+
+    simulate_pole_placement_controller()
     return
 
 
