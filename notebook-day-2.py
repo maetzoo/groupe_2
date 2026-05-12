@@ -1320,6 +1320,83 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ###
+
+    **1. Matrices du système réduit**
+    Nous conservons uniquement les états liés à la dynamique latérale : $\Delta s_{lat} = [\Delta x, \Delta v_x, \Delta \theta, \Delta \omega]^T$.
+    La poussée étant fixée à $f = Mg$, la variation d'entrée est nulle ($\Delta f = 0$). Notre seule commande est l'angle de la tuyère $\Delta u = \Delta \phi$.
+
+    En extrayant les lignes et colonnes correspondantes des matrices pleines définies précédemment, nous obtenons le système réduit $\dot{\Delta s}_{lat} = A_{lat} \Delta s_{lat} + B_{lat} \Delta \phi$ avec :
+
+    $$
+    A_{lat} =
+    \begin{bmatrix}
+    0 & 1 & 0 & 0 \\
+    0 & 0 & -g & 0 \\
+    0 & 0 & 0 & 1 \\
+    0 & 0 & 0 & 0
+    \end{bmatrix}
+    , \quad
+    B_{lat} =
+    \begin{bmatrix}
+    0 \\
+    -g \\
+    0 \\
+    -\frac{Mg\ell}{2J}
+    \end{bmatrix}
+    $$
+
+    **2. Commandabilité**
+    D'après le cours, un système linéaire invariant dans le temps de dimension $n$ est commandable si et seulement si sa matrice de commandabilité $\mathcal{C} = [B, AB, \dots, A^{n-1}B]$ est de rang plein (égal à $n$).
+
+    Ici, $n=4$. Calculons les colonnes de la matrice de Kalman :
+    * $B_{lat} = [0, -g, 0, -\beta]^T$ (en posant $\beta = \frac{Mg\ell}{2J}$)
+    * $A_{lat}B_{lat} = [-g, 0, -\beta, 0]^T$
+    * $A_{lat}^2B_{lat} = [0, g\beta, 0, 0]^T$
+    * $A_{lat}^3B_{lat} = [g\beta, 0, 0, 0]^T$
+
+    La matrice $\mathcal{C}$ est triangulaire (à des permutations de lignes et colonnes près) avec des éléments non nuls sur la diagonale principale. Son déterminant est non nul, elle est donc de rang 4. **Le système réduit est totalement commandable**.
+    """)
+    return
+
+
+@app.cell
+def _(J, M, g, l, np):
+    # Définition des matrices réduites
+    A_lat = np.array([
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0,  -g, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+        [0.0, 0.0, 0.0, 0.0]
+    ])
+
+    beta = (M * g * l) / (2 * J)
+    B_lat = np.array([
+        [0.0],
+        [-g],
+        [0.0],
+        [-beta]
+    ])
+
+    # Vérification de la commandabilité (Critère de Kalman)
+    n_lat = A_lat.shape[0]
+    C_lat_cols = [B_lat]
+    terme_actuel = B_lat
+    for _ in range(1, n_lat):
+        terme_actuel = A_lat @ terme_actuel
+        C_lat_cols.append(terme_actuel)
+
+    C_lat = np.hstack(C_lat_cols)
+    rang_C_lat = np.linalg.matrix_rank(C_lat)
+
+    print(f"Rang de la matrice de commandabilité réduite : {rang_C_lat} (n={n_lat})")
+    print(f"Le système latéral est-il commandable ? {rang_C_lat == n_lat}")
+    return (A_lat,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Linear Model in Free Fall
 
     Make graphs of $x(t)$ and $\theta(t)$ for the linearized model when
@@ -1328,6 +1405,58 @@ def _(mo):
 
     What do you see? How do you explain it?
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Nous simulons le modèle linéarisé autonome ($\Delta \phi = 0$) avec une condition initiale inclinée $\Delta s_{lat}(0) = [0, 0, \pi/4, 0]^T$.
+
+    **Observation :**
+    Sur le graphique généré, nous pouvons voir que l'angle $\theta(t)$ reste constant à sa valeur initiale de $\pi/4$ (soit environ 0.785 rad). La position latérale $x(t)$, quant à elle, dérive de manière parabolique vers les valeurs négatives.
+
+    **Explication :**
+    Ce comportement s'explique directement par la structure de notre matrice $A_{lat}$.
+    * La dernière ligne de $A_{lat}$ est composée uniquement de zéros, ce qui signifie que l'accélération angulaire $\ddot{\theta}$ est strictement nulle en l'absence de commande d'entrée ($\Delta \phi = 0$). L'angle initial est donc conservé indéfiniment.
+    * La deuxième ligne de $A_{lat}$ donne l'accélération horizontale : $\ddot{x} = -g \theta$. Puisque $\theta$ est constant et positif ($\pi/4$), la fusée subit une accélération constante vers la gauche. En intégrant deux fois cette accélération constante, on obtient naturellement une trajectoire en forme de parabole pour la position $x(t) = -\frac{g \pi}{8} t^2$.
+    """)
+    return
+
+
+@app.cell
+def _(A_lat, np, plt):
+    # Simulation du modèle linéaire sans commande (u = 0)
+    from scipy.linalg import expm
+
+    def simulate_linear_free_fall():
+        t = np.linspace(0.0, 5.0, 500)
+        y0_lat = np.array([0.0, 0.0, np.pi/4, 0.0])
+    
+        # Utilisation de l'exponentielle de matrice comme vu dans le cours (3-2-Stabilization)
+        yt = np.array([expm(A_lat * t_) @ y0_lat for t_ in t])
+    
+        x_t = yt[:, 0]
+        theta_t = yt[:, 2]
+    
+        fig, axes = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+    
+        axes[0].plot(t, x_t, label=r"Position latérale $x(t)$", color="tab:blue")
+        axes[0].set_ylabel("x (m)")
+        axes[0].grid(True)
+        axes[0].legend()
+    
+        axes[1].plot(t, theta_t, label=r"Angle d'inclinaison $\theta(t)$", color="tab:red")
+        axes[1].set_ylabel(r"$\theta$ (rad)")
+        axes[1].set_xlabel("Temps $t$ (s)")
+        axes[1].grid(True)
+        axes[1].legend()
+    
+        fig.suptitle("Simulation du modèle latéral linéarisé (Sans commande, $\phi=0$)")
+        fig.tight_layout()
+        return fig
+
+    simulate_linear_free_fall()
     return
 
 
