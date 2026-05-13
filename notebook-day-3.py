@@ -2275,6 +2275,13 @@ def _(mo):
     return
 
 
+@app.cell
+def _(mo):
+    ## Brouillon 
+    mo.image(src="geom.jpeg")
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -2282,6 +2289,21 @@ def _(mo):
 
     Compute $\dot{h}$ as a function of $\dot{x}$, $\dot{y}$, $\theta$ and $\dot{\theta}$ (and constants) and then $\ddot{h}$ as a function of $\theta$ and $z$ (and constants) when the auxiliary system is plugged in the booster.
     """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.vstack([
+            mo.hstack([
+                mo.image(src="dériv1.jpeg", width=350),
+                mo.image(src="dériv2.jpeg", width=350)
+            ], justify="center"),
+            mo.hstack([
+                mo.image(src="dériv3.jpeg", width=350),
+                mo.image(src="dériv4.jpeg", width=350)
+            ], justify="center")
+        ])
     return
 
 
@@ -2406,6 +2428,15 @@ def _(mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.hstack([
+            mo.image(src="dériv5.jpeg", width=400),
+            mo.image(src="dériv6.jpeg", width=400)
+        ], justify="center")
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -2467,6 +2498,24 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ###
+    Brouillon
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.vstack([
+            mo.image(src="dériv7.jpeg", width=500),
+            mo.image(src="dériv8.jpeg", width=500)
+        ], align="center")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ###
 
     il faut maintenant trouver une loi de commande $v = (v_1, v_2)$ telle que la dynamique complexe de notre point $h$ se transforme en une simple équation linéaire parfaite : $h^{(4)} = u$ (où $u = (u_1, u_2)$ est notre commande finale).
 
@@ -2508,12 +2557,110 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ###
+
+    La fonction `Tr` (Transformation) est simplement la traduction informatique des équations mathématiques que nous avons démontrées dans les questions précédentes. Il s'agit du passage de l'état physique $(x, v_x, y, v_y, \theta, \omega)$ et auxiliaire $(z, \dot{z})$ vers les dérivées de notre point $h$.
+
+    Rappel des formules établies :
+    1. $h = \begin{bmatrix} x - (\ell/6) \sin \theta \\ y + (\ell/6) \cos \theta \end{bmatrix}$
+    2. $\dot{h} = \begin{bmatrix} v_x - (\ell/6)\omega \cos\theta \\ v_y - (\ell/6)\omega \sin\theta \end{bmatrix}$
+    3. $\ddot{h} = \begin{bmatrix} (z/M)\sin\theta \\ -(z/M)\cos\theta - g \end{bmatrix}$
+    4. $h^{(3)} = \begin{bmatrix} (\dot{z}/M)\sin\theta + (z\omega/M)\cos\theta \\ -(\dot{z}/M)\cos\theta + (z\omega/M)\sin\theta \end{bmatrix}$
+    """)
+    return
+
+
+@app.cell
+def _(M, g, l, np):
+    def Tr(x, dx, y, dy, theta, dtheta, z, dz):
+        """Calcule h et ses 3 premières dérivées à partir de l'état du système."""
+        # h (Position)
+        hx = x - (l/6) * np.sin(theta)
+        hy = y + (l/6) * np.cos(theta)
+    
+        # h_dot (Vitesse)
+        dhx = dx - (l/6) * dtheta * np.cos(theta)
+        dhy = dy - (l/6) * dtheta * np.sin(theta)
+    
+        # h_ddot (Accélération)
+        d2hx = (z / M) * np.sin(theta)
+        d2hy = -(z / M) * np.cos(theta) - g
+    
+        # h_3 (Jerk / Dérivée troisième)
+        d3hx = (dz / M) * np.sin(theta) + (z * dtheta / M) * np.cos(theta)
+        d3hy = -(dz / M) * np.cos(theta) + (z * dtheta / M) * np.sin(theta)
+    
+        return np.array([hx, hy, dhx, dhy, d2hx, d2hy, d3hx, d3hy])
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Inversion
 
 
     Assume for the sake of simplicity that $z<0$ at all times. Show that given the values of $h$, $\dot{h}$, $\ddot{h}$ and $h^{(3)}$, one can uniquely compute the booster state (the values of $x$, $\dot{x}$, $y$, $\dot{y}$, $\theta$, $\dot{\theta}$) and auxiliary system state (the values of $z$ and $\dot{z}$).
 
     Implement the corresponding function `T_inv`.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ###
+    Brouillon  (Obtention de teta et omega)
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.vstack([
+            mo.hstack([
+                mo.image(src="inv1.jpeg", width=350),
+                mo.image(src="inv2.jpeg", width=350)
+            ], justify="center"),
+            mo.hstack([
+                mo.image(src="inv3.jpeg", width=350),
+                mo.image(src="inv4.jpeg", width=350)
+            ], justify="center")
+        ])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ###
+
+    maintenant on connaît la trajectoire pour h
+
+    **1. Récupération de $z$ et $\theta$ via $\ddot{h}$ :**
+    À partir de nos équations de $\ddot{h}$, on a :
+    * $M\ddot{h}_x = z \sin\theta$
+    * $-M(\ddot{h}_y + g) = z \cos\theta$
+
+    En élevant ces deux termes au carré et en les additionnant (sachant que $\sin^2\theta + \cos^2\theta = 1$), on obtient $z^2 = (M\ddot{h}_x)^2 + (-M(\ddot{h}_y + g))^2$. Puisque l'énoncé précise $z < 0$, on prend la racine négative :
+    $$z = -M \sqrt{\ddot{h}_x^2 + (\ddot{h}_y + g)^2}$$
+    Une fois $z$ connu, on déduit l'angle $\theta$ en utilisant la fonction arctangente ($\text{atan2}$ pour respecter les signes) sur le sinus et le cosinus.
+
+    **2. Récupération de $\dot{z}$ et $\omega$ via $h^{(3)}$ :**
+    Le vecteur $h^{(3)}$ s'écrit sous forme matricielle :
+    $$M \begin{bmatrix} h^{(3)}_x \\ h^{(3)}_y \end{bmatrix} = \begin{bmatrix} \sin\theta & \cos\theta \\ -\cos\theta & \sin\theta \end{bmatrix} \begin{bmatrix} \dot{z} \\ z\omega \end{bmatrix}$$
+    En multipliant par la transposée (l'inverse de la matrice de rotation), on isole $\dot{z}$ et $\omega$ :
+    $$\dot{z} = M (h^{(3)}_x \sin\theta - h^{(3)}_y \cos\theta)$$
+    $$\omega = \frac{M}{z} (h^{(3)}_x \cos\theta + h^{(3)}_y \sin\theta)$$
+
+    **3. Récupération des positions et vitesses ($x, y, v_x, v_y$) :**
+    Maintenant que $\theta$ et $\omega$ sont connus, il suffit d'inverser les définitions géométriques de base :
+    * $x = h_x + (\ell/6) \sin\theta$
+    * $y = h_y - (\ell/6) \cos\theta$
+    * $v_x = \dot{h}_x + (\ell/6) \omega \cos\theta$
+    * $v_y = \dot{h}_y + (\ell/6) \omega \sin\theta$
     """)
     return
 
