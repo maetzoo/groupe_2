@@ -64,10 +64,8 @@ def _(mo):
 def _():
     import scipy
     import scipy.integrate as sci
-
     import matplotlib as mpl
     import matplotlib.pyplot as plt
-
     import numpy as np
     import numpy.linalg as la
 
@@ -225,16 +223,6 @@ def _(mo):
     M \ddot{x} & = -f \sin (\theta + \phi) \\
     M \ddot{y} & = +f \cos(\theta +\phi) - Mg
     \end{align*}
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 🧩 Moment of inertia
-
-    Compute the [moment of inertia](https://en.wikipedia.org/wiki/Moment_of_inertia) $J$ of the booster and define the corresponding Python variable `J`.
     """)
     return
 
@@ -2359,57 +2347,57 @@ def _():
     import sympy as sp
 
     def verify_exact_linearization():
-    
+
         t, M, l, g = sp.symbols('t M l g', positive=True, real=True)
         z, v2 = sp.symbols('z v2', real=True)
-    
-    
+
+
         x = sp.Function('x')(t)
         y = sp.Function('y')(t)
         theta = sp.Function('theta')(t)
-    
-    
+
+
         vx = sp.diff(x, t)
         vy = sp.diff(y, t)
         omega = sp.diff(theta, t)
-    
-    
+
+
         fx = sp.sin(theta) * (z - M*l/6 * omega**2) + sp.cos(theta) * (M*l*v2 / (6*z))
         fy = -sp.cos(theta) * (z - M*l/6 * omega**2) + sp.sin(theta) * (M*l*v2 / (6*z))
-    
+
         # La dynamique du système
         ddot_x = fx / M
         ddot_y = fy / M - g
         ddot_theta = (6 / (M*l)) * (fx * sp.cos(theta) + fy * sp.sin(theta))
-    
-  
+
+
         hx = x - (l/6) * sp.sin(theta)
         hy = y + (l/6) * sp.cos(theta)
-    
+
         # Calcul formel des dérivées secondes de h
         ddot_hx = sp.diff(hx, t, t)
         ddot_hy = sp.diff(hy, t, t)
-    
+
         # on remplace les dérivées secondes temporelles par nos équations de la dynamique
         subs_dict = {
             sp.diff(x, t, t): ddot_x,
             sp.diff(y, t, t): ddot_y,
             sp.diff(theta, t, t): ddot_theta
         }
-    
+
         ddot_hx_phys = sp.simplify(ddot_hx.subs(subs_dict))
         ddot_hy_phys = sp.simplify(ddot_hy.subs(subs_dict))
-    
+
         print("Accélération h_x (simplifiée par SymPy) :")
         sp.pprint(ddot_hx_phys)
-    
+
         print("\nAccélération h_y (simplifiée par SymPy) :")
         sp.pprint(ddot_hy_phys)
-    
+
         # vérifier que ça correspond bien à la formule simplifiée :
         expected_hx = (z/M) * sp.sin(theta)
         expected_hy = -(z/M) * sp.cos(theta) - g
-    
+
         print("\nEst-ce que le résultat théorique est confirmé ?")
         print("Pour hx :", sp.simplify(ddot_hx_phys - expected_hx) == 0)
         print("Pour hy :", sp.simplify(ddot_hy_phys - expected_hy) == 0)
@@ -2559,7 +2547,7 @@ def _(mo):
     mo.md(r"""
     ###
 
-    La fonction `Tr` (Transformation) est simplement la traduction informatique des équations mathématiques que nous avons démontrées dans les questions précédentes. Il s'agit du passage de l'état physique $(x, v_x, y, v_y, \theta, \omega)$ et auxiliaire $(z, \dot{z})$ vers les dérivées de notre point $h$.
+    on fait un passage de l'état physique $(x, v_x, y, v_y, \theta, \omega)$ et auxiliaire $(z, \dot{z})$ vers les dérivées de notre point $h$.
 
     Rappel des formules établies :
     1. $h = \begin{bmatrix} x - (\ell/6) \sin \theta \\ y + (\ell/6) \cos \theta \end{bmatrix}$
@@ -2577,22 +2565,22 @@ def _(M, g, l, np):
         # h (Position)
         hx = x - (l/6) * np.sin(theta)
         hy = y + (l/6) * np.cos(theta)
-    
+
         # h_dot (Vitesse)
         dhx = dx - (l/6) * dtheta * np.cos(theta)
         dhy = dy - (l/6) * dtheta * np.sin(theta)
-    
+
         # h_ddot (Accélération)
         d2hx = (z / M) * np.sin(theta)
         d2hy = -(z / M) * np.cos(theta) - g
-    
+
         # h_3 (Jerk / Dérivée troisième)
         d3hx = (dz / M) * np.sin(theta) + (z * dtheta / M) * np.cos(theta)
         d3hy = -(dz / M) * np.cos(theta) + (z * dtheta / M) * np.sin(theta)
-    
+
         return np.array([hx, hy, dhx, dhy, d2hx, d2hy, d3hx, d3hy])
 
-    return
+    return (Tr,)
 
 
 @app.cell(hide_code=True)
@@ -2604,15 +2592,6 @@ def _(mo):
     Assume for the sake of simplicity that $z<0$ at all times. Show that given the values of $h$, $\dot{h}$, $\ddot{h}$ and $h^{(3)}$, one can uniquely compute the booster state (the values of $x$, $\dot{x}$, $y$, $\dot{y}$, $\theta$, $\dot{\theta}$) and auxiliary system state (the values of $z$ and $\dot{z}$).
 
     Implement the corresponding function `T_inv`.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ###
-    Brouillon  (Obtention de teta et omega)
     """)
     return
 
@@ -2665,6 +2644,49 @@ def _(mo):
     return
 
 
+@app.cell
+def _(M, g, l, np):
+    def T_inv(hx, hy, dhx, dhy, d2hx, d2hy, d3hx, d3hy):
+        """Calcule l'état de la fusée à partir de la trajectoire du point h."""
+    
+        # 1. Calcul de z (on sait que z < 0)
+        # z^2 = (M*d2hx)^2 + (-M*(d2hy + g))^2
+        z = -M * np.sqrt(d2hx**2 + (d2hy + g)**2)
+    
+        # 2. Calcul de theta
+        sin_theta = (M * d2hx) / z
+        cos_theta = (-M * (d2hy + g)) / z
+        theta = np.arctan2(sin_theta, cos_theta)
+    
+        # 3. Calcul de dz et omega (dtheta) par inversion de la matrice de rotation
+        dz = M * (d3hx * np.sin(theta) - d3hy * np.cos(theta))
+        dtheta = (M / z) * (d3hx * np.cos(theta) + d3hy * np.sin(theta))
+    
+        # 4. Déduction de la position x, y
+        x = hx + (l/6) * np.sin(theta)
+        y = hy - (l/6) * np.cos(theta)
+    
+        # 5. Déduction des vitesses dx, dy
+        dx = dhx + (l/6) * dtheta * np.cos(theta)
+        dy = dhy + (l/6) * dtheta * np.sin(theta)
+    
+        return np.array([x, dx, y, dy, theta, dtheta, z, dz])
+
+    return (T_inv,)
+
+
+@app.cell
+def _(Tr):
+    Tr(1.0, 2.0, 3.0, 4.0, 0.1 , 0.2, -0.3 , -0.4)
+    return
+
+
+@app.cell
+def _(Tr_inv):
+    Tr_inv()
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -2704,6 +2726,99 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ###
+
+
+
+    puisque nous devons satisfaire 4 conditions initiales ($h, \dot{h}, \ddot{h}, h^{(3)}$) et 4 conditions finales à $t_f$ pour chaque axe, nous utilisons un polynôme de degré 7 (possédant 8 coefficients) :
+    $$h_{x,y}(t) = \sum_{k=0}^{7} c_k t^k$$
+
+    L'algorithme de la fonction `compute` est le suivant :
+    1. on utilise de `Tr` pour convertir les états physiques initial et final en conditions aux limites sur $h_x$ et $h_y$.
+    2. on résout un système linéaire $8 \times 8$ pour trouver les coefficients des polynômes de $h_x(t)$ et $h_y(t)$ puis à chaque instant $t$, on calcule la valeur des polynômes jusqu'à la dérivée quatrième ($u = h^{(4)}$).
+    3. Finalement, on utilise `T_inv` pour retrouver l'état $(x, \dot{x}, y, \dot{y}, \theta, \dot{\theta}, z, \dot{z})$.
+    4.  À partir de $u$ et de l'état, on déduit les variables intermédiaires $v_1, v_2$, puis les forces $f_x, f_y$ pour enfin obtenir la poussée $f$ et l'angle de tuyère $\phi$.
+    """)
+    return
+
+
+@app.cell
+def _(M, T_inv, Tr, l, np):
+
+    def compute(x_0, dx_0, y_0, dy_0, theta_0, dtheta_0, z_0, dz_0,
+                x_tf, dx_tf, y_tf, dy_tf, theta_tf, dtheta_tf, z_tf, dz_tf, tf):
+
+        # 1. Obtenir les conditions aux limites dans l'espace plat
+        h0_state = Tr(x_0, dx_0, y_0, dy_0, theta_0, dtheta_0, z_0, dz_0)
+        htf_state = Tr(x_tf, dx_tf, y_tf, dy_tf, theta_tf, dtheta_tf, z_tf, dz_tf)
+
+        hx_0 = np.array([h0_state[0], h0_state[2], h0_state[4], h0_state[6]])
+        hy_0 = np.array([h0_state[1], h0_state[3], h0_state[5], h0_state[7]])
+
+        hx_tf = np.array([htf_state[0], htf_state[2], htf_state[4], htf_state[6]])
+        hy_tf = np.array([htf_state[1], htf_state[3], htf_state[5], htf_state[7]])
+
+        # 2. Construction de la matrice pour un polynôme de degré 7
+        def poly7_mat(t):
+            return np.array([
+                [1, t, t**2, t**3, t**4, t**5, t**6, t**7],
+                [0, 1, 2*t, 3*t**2, 4*t**3, 5*t**4, 6*t**5, 7*t**6],
+                [0, 0, 2, 6*t, 12*t**2, 20*t**3, 30*t**4, 42*t**5],
+                [0, 0, 0, 6, 24*t, 60*t**2, 120*t**3, 210*t**4]
+            ])
+
+        Mat_sys = np.vstack((poly7_mat(0), poly7_mat(tf)))
+
+        # 3. Résolution des coefficients (c_x et c_y)
+        cx = np.linalg.solve(Mat_sys, np.concatenate((hx_0, hx_tf)))
+        cy = np.linalg.solve(Mat_sys, np.concatenate((hy_0, hy_tf)))
+
+        # 4. Fonction dynamique renvoyée
+        def fun(t):
+            # Matrice d'évaluation à l'instant t (jusqu'à l'ordre 4)
+            eval_mat = np.array([
+                [1, t, t**2, t**3, t**4, t**5, t**6, t**7],
+                [0, 1, 2*t, 3*t**2, 4*t**3, 5*t**4, 6*t**5, 7*t**6],
+                [0, 0, 2, 6*t, 12*t**2, 20*t**3, 30*t**4, 42*t**5],
+                [0, 0, 0, 6, 24*t, 60*t**2, 120*t**3, 210*t**4],
+                [0, 0, 0, 0, 24, 120*t, 360*t**2, 840*t**3] # Dérivée 4ème pour avoir u
+            ])
+
+            hx_eval = eval_mat @ cx
+            hy_eval = eval_mat @ cy
+
+            hx, dhx, d2hx, d3hx, d4hx = hx_eval
+            hy, dhy, d2hy, d3hy, d4hy = hy_eval
+
+            # A. Inversion vers l'état physique
+            phys_state = T_inv(hx, hy, dhx, dhy, d2hx, d2hy, d3hx, d3hy)
+            x, dx, y, dy, theta, dtheta, z, dz = phys_state
+
+            # B. Calcul des commandes physiques (f, phi)
+            u1, u2 = d4hx, d4hy
+
+            # retour d'état exact (lois de commande v1, v2)
+            v1 = z * dtheta**2 + M * (u1 * np.sin(theta) - u2 * np.cos(theta))
+            v2 = -2 * dz * dtheta + M * (u1 * np.cos(theta) + u2 * np.sin(theta))
+
+            # application de la matrice de rotation corrigée (R(theta - pi/2))
+            fx = np.sin(theta) * (z - M*l/6 * dtheta**2) + np.cos(theta) * (M*l*v2 / (6*z))
+            fy = -np.cos(theta) * (z - M*l/6 * dtheta**2) + np.sin(theta) * (M*l*v2 / (6*z))
+
+            # extraction de la force totale et de l'angle de tuyère
+            f = np.sqrt(fx**2 + fy**2)
+            phi = np.arctan2(-fx, fy) - theta
+
+            return np.array([x, dx, y, dy, theta, dtheta, z, dz, f, phi])
+
+        return fun
+
+    return (compute,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Graphical Validation
 
     Test your `compute` function with
@@ -2714,6 +2829,146 @@ def _(mo):
 
     Make the graph of the relevant variables as a function of time, then make an animation out of the same result. Comment and iterate if necessary!
     """)
+    return
+
+
+@app.cell
+def _(M, compute, g, np, plt):
+
+    tf = 10.0  # temps du vol
+
+    # État initial 
+    x_0, y_0 = 10.0, 15.0
+    dx_0, dy_0 = -2.0, -1.0  
+    theta_0, dtheta_0 = np.pi / 6, 0.0  
+    z_0, dz_0 = -M * g, 0.0  
+
+    # État final : Posée au centre (0,0), bien droite, tout à l'arrêt
+    x_tf, y_tf = 0.0, 0.0
+    dx_tf, dy_tf = 0.0, 0.0
+    theta_tf, dtheta_tf = 0.0, 0.0
+    z_tf, dz_tf = (
+        -M * g,
+        0.0,
+    ) 
+
+    # 
+    # ici on calcule la trajectoire
+    trajectoire_func = compute(
+        x_0,
+        dx_0,
+        y_0,
+        dy_0,
+        theta_0,
+        dtheta_0,
+        z_0,
+        dz_0,
+        x_tf,
+        dx_tf,
+        y_tf,
+        dy_tf,
+        theta_tf,
+        dtheta_tf,
+        z_tf,
+        dz_tf,
+        tf,
+    )
+
+    # Évaluation sur 300 points de temps
+    temps = np.linspace(0, tf, 300)
+    etats = np.array([trajectoire_func(t) for t in temps])
+
+    # on extrait les colonnes
+    X = etats[:, 0]
+    Y = etats[:, 2]
+    Theta = etats[:, 4]
+    Force = etats[:, 8]
+    Phi = etats[:, 9]
+
+    # --- 3. AFFICHAGE (MATPLOTLIB) ---
+    fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+    fig.suptitle("Validation Graphique de la Linéarisation Exacte", fontsize=16)
+
+    # Graphe 1 : Trajectoire dans l'espace
+    axs[0, 0].plot(X, Y, "b-", linewidth=2)
+    axs[0, 0].plot(x_0, y_0, "go", label="Départ")
+    axs[0, 0].plot(x_tf, y_tf, "ro", label="Arrivée")
+    axs[0, 0].set_title("Trajectoire spatiale (x, y)")
+    axs[0, 0].set_xlabel("x (m)")
+    axs[0, 0].set_ylabel("y (m)")
+    axs[0, 0].grid(True)
+    axs[0, 0].legend()
+    axs[0, 0].axis("equal")  # Super important pour ne pas déformer la trajectoire
+
+    # Graphe 2 : Angle de la fusée
+    axs[0, 1].plot(temps, np.degrees(Theta), "r-", linewidth=2)
+    axs[0, 1].axhline(0, color="black", linestyle="--")
+    axs[0, 1].set_title("Inclinaison de la fusée (Theta)")
+    axs[0, 1].set_xlabel("Temps (s)")
+    axs[0, 1].set_ylabel("Angle (°)")
+    axs[0, 1].grid(True)
+
+    # Graphe 3 : Force du moteur
+    axs[1, 0].plot(temps, Force, "g-", linewidth=2)
+    axs[1, 0].axhline(M * g, color="black", linestyle="--", label="Poids (M*g)")
+    axs[1, 0].set_title("Poussée du moteur (f)")
+    axs[1, 0].set_xlabel("Temps (s)")
+    axs[1, 0].set_ylabel("Force (N)")
+    axs[1, 0].grid(True)
+    axs[1, 0].legend()
+
+    # Graphe 4 : Angle de la tuyère
+    axs[1, 1].plot(temps, np.degrees(Phi), "m-", linewidth=2)
+    axs[1, 1].axhline(0, color="black", linestyle="--")
+    axs[1, 1].set_title("Orientation de la tuyère (Phi)")
+    axs[1, 1].set_xlabel("Temps (s)")
+    axs[1, 1].set_ylabel("Angle (°)")
+    axs[1, 1].grid(True)
+
+    plt.tight_layout()
+    fig
+
+
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _(M, booster_anim, compute, g, l, mo, np, world):
+    def admissible_anim():
+        x_0, dx_0 = 5.0, 0.0
+        y_0, dy_0 = 20.0, -1.0
+        theta_0, dtheta_0 = -np.pi/8, 0.0
+        z_0, dz_0 = -M*g, 0.0
+
+        x_tf, dx_tf = 0.0, 0.0
+        y_tf, dy_tf = (2.0/3.0) * l, 0.0
+        theta_tf, dtheta_tf = 0.0, 0.0
+        z_tf, dz_tf = -M*g, 0.0
+
+        tf = 10.0
+
+        fun = compute(
+            x_0, dx_0, y_0, dy_0, theta_0, dtheta_0, z_0, dz_0,
+            x_tf, dx_tf, y_tf, dy_tf, theta_tf, dtheta_tf, z_tf, dz_tf,
+            tf,
+        )
+
+        x = lambda t: float(fun(float(t))[0])
+        y = lambda t: float(fun(float(t))[2])
+        theta = lambda t: float(fun(float(t))[4])
+        f = lambda t: float(fun(float(t))[8])
+        phi = lambda t: float(fun(float(t))[9])
+
+        return mo.Html(
+            world([-3, 7, -2, 22], booster_anim(x, y, theta, f, phi, T=tf))
+        ).center()
+
+    admissible_anim()
     return
 
 
