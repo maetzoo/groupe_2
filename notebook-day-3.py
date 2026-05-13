@@ -2325,9 +2325,126 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ###
+    Voici une cellule Bonus pour vérifier nos calculus avec la librairie sympy
+    """)
+    return
+
+
+@app.cell
+def _():
+
+    import sympy as sp
+
+    def verify_exact_linearization():
+    
+        t, M, l, g = sp.symbols('t M l g', positive=True, real=True)
+        z, v2 = sp.symbols('z v2', real=True)
+    
+    
+        x = sp.Function('x')(t)
+        y = sp.Function('y')(t)
+        theta = sp.Function('theta')(t)
+    
+    
+        vx = sp.diff(x, t)
+        vy = sp.diff(y, t)
+        omega = sp.diff(theta, t)
+    
+    
+        fx = sp.sin(theta) * (z - M*l/6 * omega**2) + sp.cos(theta) * (M*l*v2 / (6*z))
+        fy = -sp.cos(theta) * (z - M*l/6 * omega**2) + sp.sin(theta) * (M*l*v2 / (6*z))
+    
+        # La dynamique du système
+        ddot_x = fx / M
+        ddot_y = fy / M - g
+        ddot_theta = (6 / (M*l)) * (fx * sp.cos(theta) + fy * sp.sin(theta))
+    
+  
+        hx = x - (l/6) * sp.sin(theta)
+        hy = y + (l/6) * sp.cos(theta)
+    
+        # Calcul formel des dérivées secondes de h
+        ddot_hx = sp.diff(hx, t, t)
+        ddot_hy = sp.diff(hy, t, t)
+    
+        # on remplace les dérivées secondes temporelles par nos équations de la dynamique
+        subs_dict = {
+            sp.diff(x, t, t): ddot_x,
+            sp.diff(y, t, t): ddot_y,
+            sp.diff(theta, t, t): ddot_theta
+        }
+    
+        ddot_hx_phys = sp.simplify(ddot_hx.subs(subs_dict))
+        ddot_hy_phys = sp.simplify(ddot_hy.subs(subs_dict))
+    
+        print("Accélération h_x (simplifiée par SymPy) :")
+        sp.pprint(ddot_hx_phys)
+    
+        print("\nAccélération h_y (simplifiée par SymPy) :")
+        sp.pprint(ddot_hy_phys)
+    
+        # vérifier que ça correspond bien à la formule simplifiée :
+        expected_hx = (z/M) * sp.sin(theta)
+        expected_hy = -(z/M) * sp.cos(theta) - g
+    
+        print("\nEst-ce que le résultat théorique est confirmé ?")
+        print("Pour hx :", sp.simplify(ddot_hx_phys - expected_hx) == 0)
+        print("Pour hy :", sp.simplify(ddot_hy_phys - expected_hy) == 0)
+
+    verify_exact_linearization()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 🧩 Third and Fourth-Order Derivatives
 
     Compute the third derivative $h^{(3)}$ of $h$ as a function of $\theta$ and $z$ (and constants) and then the fourth derivative $h^{(4)}$ of $h$ with respect to time as a function of $\theta$, $\dot{\theta}$, $z$, $\dot{z}$, $v$ (and constants) when the auxiliary system is on.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ###
+
+    **1. Troisième dérivée ($h^{(3)}$)**
+    Nous partons de l'accélération trouvée précédemment, où la gravité $g$ est un vecteur constant :
+    $$
+    \ddot{h} = \frac{z}{M} \begin{bmatrix} \sin \theta \\ -\cos \theta \end{bmatrix} + \begin{bmatrix} 0 \\ -g \end{bmatrix}
+    $$
+    En dérivant par rapport au temps (avec $\dot{\theta} = \omega$), le terme constant de gravité disparaît :
+    $$
+    h^{(3)} = \frac{\dot{z}}{M} \begin{bmatrix} \sin \theta \\ -\cos \theta \end{bmatrix} + \frac{z \omega}{M} \begin{bmatrix} \cos \theta \\ \sin \theta \end{bmatrix}
+    $$
+
+    **2. Quatrième dérivée ($h^{(4)}$)**
+    On dérive $h^{(3)}$ une nouvelle fois. Il faut appliquer la règle du produit sur les deux termes :
+    $$
+    h^{(4)} = \frac{\ddot{z}}{M} \begin{bmatrix} \sin \theta \\ -\cos \theta \end{bmatrix} + \frac{\dot{z}\omega}{M} \begin{bmatrix} \cos \theta \\ \sin \theta \end{bmatrix} + \frac{\dot{z}\omega + z\dot{\omega}}{M} \begin{bmatrix} \cos \theta \\ \sin \theta \end{bmatrix} + \frac{z\omega^2}{M} \begin{bmatrix} -\sin \theta \\ \cos \theta \end{bmatrix}
+    $$
+    En regroupant les termes en fonction des vecteurs colonnes, on obtient :
+    $$
+    h^{(4)} = \frac{1}{M} (\ddot{z} - z \omega^2) \begin{bmatrix} \sin \theta \\ -\cos \theta \end{bmatrix} + \frac{1}{M} (2\dot{z}\omega + z\dot{\omega}) \begin{bmatrix} \cos \theta \\ \sin \theta \end{bmatrix}
+    $$
+
+    **3. Injection du système auxiliaire $v$**
+    Par définition de notre système auxiliaire, nous savons que :
+    * $\ddot{z} = v_1$
+    * Le couple permet d'écrire $z\dot{\omega} = v_2$ (car $\dot{\omega} = \frac{6}{M\ell}(f_x \cos\theta + f_y \sin\theta) = \frac{6}{M\ell}\frac{M\ell v_2}{6z} = \frac{v_2}{z}$)
+
+    En remplaçant ces éléments, la dérivée d'ordre 4 devient :
+    $$
+    h^{(4)} = \frac{1}{M} (v_1 - z \omega^2) \begin{bmatrix} \sin \theta \\ -\cos \theta \end{bmatrix} + \frac{1}{M} (v_2 + 2\dot{z}\omega) \begin{bmatrix} \cos \theta \\ \sin \theta \end{bmatrix}
+    $$
+
+    On peut réécrire cela sous forme matricielle en faisant apparaître la matrice de rotation $R(\theta - \pi/2) = \begin{bmatrix} \sin\theta & \cos\theta \\ -\cos\theta & \sin\theta \end{bmatrix}$ :
+    $$
+    h^{(4)} = \frac{1}{M} R\left(\theta - \frac{\pi}{2}\right) \begin{bmatrix} v_1 - z\omega^2 \\ v_2 + 2\dot{z}\omega \end{bmatrix}
+    $$
     """)
     return
 
@@ -2342,6 +2459,38 @@ def _(mo):
     $$
     h^{(4)} = u
     $$
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ###
+
+    il faut maintenant trouver une loi de commande $v = (v_1, v_2)$ telle que la dynamique complexe de notre point $h$ se transforme en une simple équation linéaire parfaite : $h^{(4)} = u$ (où $u = (u_1, u_2)$ est notre commande finale).
+
+    Nous avons établi que :
+    $$
+    h^{(4)} = \frac{1}{M} R\left(\theta - \frac{\pi}{2}\right) \begin{bmatrix} v_1 - z\omega^2 \\ v_2 + 2\dot{z}\omega \end{bmatrix}
+    $$
+
+    Pour imposer $h^{(4)} = u$, il suffit d'inverser cette relation algébrique pour isoler le vecteur $v$. Puisque $R$ est une matrice de rotation, son inverse est sa transposée : $R^{-1}(\theta - \pi/2) = R^T(\theta - \pi/2) = \begin{bmatrix} \sin\theta & -\cos\theta \\ \cos\theta & \sin\theta \end{bmatrix}$.
+
+    On écrit donc :
+    $$
+    \begin{bmatrix} v_1 - z\omega^2 \\ v_2 + 2\dot{z}\omega \end{bmatrix} = M \begin{bmatrix} \sin\theta & -\cos\theta \\ \cos\theta & \sin\theta \end{bmatrix} \begin{bmatrix} u_1 \\ u_2 \end{bmatrix}
+    $$
+
+    En développant ce produit matriciel, on trouve les lois de commande pour le système auxiliaire $v$ :
+    $$
+    v_1 = z\omega^2 + M (u_1 \sin\theta - u_2 \cos\theta)
+    $$
+    $$
+    v_2 = -2\dot{z}\omega + M (u_1 \cos\theta + u_2 \sin\theta)
+    $$
+
+    ceci dit, si l'on applique cette commande $v$, toutes les non-linéarités (les sinus, les cosinus, les forces centrifuges et de Coriolis) s'annulent physiquement ! Le système devient équivalent à deux chaînes indépendantes de 4 intégrateurs purs : $\frac{d^4 h_x}{dt^4} = u_1$ et $\frac{d^4 h_y}{dt^4} = u_2$.
     """)
     return
 
